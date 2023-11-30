@@ -32,10 +32,15 @@ class EduConnect:
 
         connect_link = HOST + soup.find(id="validerAuth").get("action")
 
+
         connection_result = self.ses.post(connect_link,
-                            data=f"j_username={username}&j_password={password}&_eventId_proceed=", allow_redirects=False)
+                            data=f"j_username={username}&j_password={password}&_eventId_proceed=", allow_redirects=False,
+                                          headers={"Origin": HOST,
+                                                   "Referer": HOST + "/idp/profile/SAML2/Redirect/SSO?execution=e2s1",
+                                                   "Content-Type": "application/x-www-form-urlencoded",
+                                                   "Sec-Fetch-Site": "same-origin"})
         print(connection_result.text)
-        print(connection_result.headers)
+        print(connection_result.request.headers)
 
         #print(self.ses.cookies)
 
