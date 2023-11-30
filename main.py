@@ -2,6 +2,7 @@ import requests
 import getpass
 from urllib.parse import quote_plus
 from bs4 import BeautifulSoup
+import html
 
 HOST = "https://educonnect.education.gouv.fr"
 
@@ -25,13 +26,10 @@ class EduConnect:
         password = quote_plus(password)
 
         connect_page = self.ses.get(HOST + "/idp/profile/SAML2/Redirect/SSO?execution=e2s1").text
-        print(self.ses.cookies)
-        #self.ses.cookies["profilEduConnect"] = user_type
 
         soup = BeautifulSoup(connect_page, features="html.parser")
 
         connect_link = HOST + soup.find(id="validerAuth").get("action")
-
 
         connection_result = self.ses.post(connect_link,
                             data=f"j_username={username}&j_password={password}&_eventId_proceed=", allow_redirects=False,
@@ -39,8 +37,22 @@ class EduConnect:
                                                    "Referer": HOST + "/idp/profile/SAML2/Redirect/SSO?execution=e2s1",
                                                    "Content-Type": "application/x-www-form-urlencoded",
                                                    "Sec-Fetch-Site": "same-origin"})
-        print(connection_result.text)
-        print(connection_result.request.headers)
+        soup = BeautifulSoup(connection_result.text, features="html.parser")
+
+        print(soup)
+        relay_state = soup.findAll("input", {"name": "RelayState"})[0].get("value")
+        SAML_response = soup.findAll("input", {"name": "SAMLResponse"})[0].get("value")
+
+        saml_result = self.ses.post("https://moncompte.educonnect.education.gouv.fr/Shibboleth.sso/SAML2/POST",
+                                    data=f"RelayState={relay_state}&SAMLResponse{SAML_response}",
+                                    headers={"Origin": HOST,
+                                             "Referer": HOST + "/idp/profile/SAML2/Redirect/SSO?execution=e2s1",
+                                             "Content-Type": "application/x-www-form-urlencoded",
+                                             "Sec-Fetch-Site": "same-origin"})
+
+        print(saml_result.text)
+        with open("out.html", "w") as file:
+            file.write(saml_result.text)
 
         #print(self.ses.cookies)
 
