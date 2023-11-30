@@ -2,7 +2,7 @@ import requests
 import getpass
 from urllib.parse import quote_plus
 from bs4 import BeautifulSoup
-import html
+from urllib import parse
 
 HOST = "https://educonnect.education.gouv.fr"
 
@@ -40,13 +40,13 @@ class EduConnect:
         soup = BeautifulSoup(connection_result.text, features="html.parser")
 
         print(soup)
-        relay_state = soup.findAll("input", {"name": "RelayState"})[0].get("value")
-        SAML_response = soup.findAll("input", {"name": "SAMLResponse"})[0].get("value")
+        relay_state = parse.quote(soup.findAll("input", {"name": "RelayState"})[0].get("value"))
+        SAML_response = parse.quote(soup.findAll("input", {"name": "SAMLResponse"})[0].get("value"))
 
         saml_result = self.ses.post("https://moncompte.educonnect.education.gouv.fr/Shibboleth.sso/SAML2/POST",
-                                    data=f"RelayState={relay_state}&SAMLResponse{SAML_response}",
+                                    data=f"RelayState={relay_state}&SAMLResponse={SAML_response}",
                                     headers={"Origin": HOST,
-                                             "Referer": HOST + "/idp/profile/SAML2/Redirect/SSO?execution=e2s1",
+                                             "Referer": connection_result.url,
                                              "Content-Type": "application/x-www-form-urlencoded",
                                              "Sec-Fetch-Site": "same-origin"})
 
