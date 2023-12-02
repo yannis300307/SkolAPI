@@ -4,7 +4,6 @@ from bs4 import BeautifulSoup
 from urllib import parse
 from enum import Enum
 
-
 HOST = "https://educonnect.education.gouv.fr"
 
 
@@ -12,10 +11,11 @@ HOST = "https://educonnect.education.gouv.fr"
 class ConnectionResult(Enum):
     """An enumeration class used as return code for Educonnect connexion results."""
     SUCCESS = 0
-    WRONG_CREDENTIALS = 1    # The sended username or password is wrong
+    WRONG_CREDENTIALS = 1  # The sended username or password is wrong
     BAD_PACKET = 2
     ALREADY_CONNECTED = 3
     INVALID_CREDENTIALS = 4  # The username or the password is empty
+    UNKNOWN_ERROR = 5
 
 
 class DisconnectionResult(Enum):
@@ -44,41 +44,101 @@ class EduConnect:
             "Sec-Fetch-User": "?1",
         }
 
+    def is_account_connected(self) -> bool:
+        """Return True if the account is connected.
+
+        :return: the connection state
+        """
+
+        # Get the account management page
+        try:
+            account_management_page = self.ses.get(
+                "https://moncompte.educonnect.education.gouv.fr/educt-self-service/profil/consultationProfil",
+                allow_redirects=False)
+        except requests.ConnectionError:
+            return False
+
+        # If the account is disconnected, requesting the account management page will try to redirect to
+        # the connection page
+        return "Location" not in account_management_page.headers
+
     def connect(self, username: str, password: str) -> ConnectionResult:
         """Connect the user to the EduConnect account using the username and the password.
 
-        :param username the EduConnect username of the user
-        :param password the EduConnect password of the user
+        :param username: the EduConnect username of the user
+        :param password: the EduConnect password of the user
 
-        :return Return a `ConnectionResult` return code
+        :return: Return a `ConnectionResult` return code
         """
+
+        # Check if the credentials are valid with the same criterias as Educonnect's criterias
         if username == "" or password == "":
             return ConnectionResult.INVALID_CREDENTIALS
+
+        # Quote the credentials
         username = quote_plus(username)
         password = quote_plus(password)
 
-        connect_page = self.ses.get(HOST + "/idp/profile/SAML2/Redirect/SSO?execution=e2s1").text
+        # Get the connection page to recover connection link and set cookies
+        try:
+            connect_page = self.ses.get(HOST + "/idp/profile/SAML2/Redirect/SSO?execution=e2s1")
+        except requests.ConnectionError:
+            return ConnectionResult.BAD_PACKET
+        try:
+            soup = BeautifulSoup(connect_page.text, features="html.parser")
+        except UnicodeDecodeError:
+            return ConnectionResult.UNKNOWN_ERROR
 
-        soup = BeautifulSoup(connect_page, features="html.parser")
+        valid_auth_form = soup.find(id="validerAuth")
+        if valid_auth_form is None:
+            return ConnectionResult.UNKNOWN_ERROR
 
-        connect_link = HOST + soup.find(id="validerAuth").get("action")
+        connect_link = valid_auth_form.get("action")
+        if connect_link is None:
+            return ConnectionResult.UNKNOWN_ERROR
+        connect_link = HOST + connect_link
 
-        connection_result = self.ses.post(connect_link,
-                                          data=f"j_username={username}&j_password={password}&_eventId_proceed=",
-                                          allow_redirects=False,
-                                          headers={"Origin": HOST,
-                                                   "Referer": HOST + "/idp/profile/SAML2/Redirect/SSO?execution=e2s1",
-                                                   "Content-Type": "application/x-www-form-urlencoded",
-                                                   "Sec-Fetch-Site": "same-origin"})
+        # Send the credentials to the server
+        try:
+            connection_result = self.ses.post(connect_link,
+                                              data=f"j_username={username}&j_password={password}&_eventId_proceed=",
+                                              allow_redirects=False,
+                                              headers={"Origin": HOST,
+                                                       "Referer": HOST+"/idp/profile/SAML2/Redirect/SSO?execution=e2s1",
+                                                       "Content-Type": "application/x-www-form-urlencoded",
+                                                       "Sec-Fetch-Site": "same-origin"})
+        except requests.ConnectionError:
+            return ConnectionResult.BAD_PACKET
 
-        soup = BeautifulSoup(connection_result.text, features="html.parser")
+        # Recover the `RelayState` and `SAMLResponse` values
+        try:
+            soup = BeautifulSoup(connection_result.text, features="html.parser")
+        except UnicodeDecodeError:
+            return ConnectionResult.UNKNOWN_ERROR
 
-        relay_state_value = parse.quote(soup.findAll("input", {"name": "RelayState"})[0].get("value"))
-        saml_response_value = parse.quote(soup.findAll("input", {"name": "SAMLResponse"})[0].get("value"))
+        relay_state_list = soup.findAll("input", {"name": "RelayState"})
+        saml_response_list = soup.findAll("input", {"name": "SAMLResponse"})
+        if len(relay_state_list) == 0 or len(saml_response_list) == 0:
+            return ConnectionResult.WRONG_CREDENTIALS
 
-        saml_result = self.ses.post("https://moncompte.educonnect.education.gouv.fr/Shibboleth.sso/SAML2/POST",
-                                    data=f"RelayState={relay_state_value}&SAMLResponse={saml_response_value}",
-                                    headers={"Origin": HOST,
-                                             "Referer": connection_result.url,
-                                             "Content-Type": "application/x-www-form-urlencoded",
-                                             "Sec-Fetch-Site": "same-origin"})
+        relay_state_value = relay_state_list[0].get("value")
+        saml_response_value = saml_response_list[0].get("value")
+        if relay_state_value is None or saml_response_value is None:
+            return ConnectionResult.UNKNOWN_ERROR
+
+        relay_state_value = parse.quote(relay_state_value)
+        saml_response_value = parse.quote(saml_response_value)
+
+        # Post data to the SAML service
+        try:
+            self.ses.post("https://moncompte.educonnect.education.gouv.fr/Shibboleth.sso/SAML2/POST",
+                          data=f"RelayState={relay_state_value}&SAMLResponse={saml_response_value}",
+                          headers={"Origin": HOST,
+                                   "Referer": connection_result.url,
+                                   "Content-Type": "application/x-www-form-urlencoded",
+                                   "Sec-Fetch-Site": "same-origin"})
+        except requests.ConnectionError:
+            return ConnectionResult.BAD_PACKET
+
+        # Check if the connection is effective
+        return ConnectionResult.SUCCESS if self.is_account_connected() else ConnectionResult.UNKNOWN_ERROR
