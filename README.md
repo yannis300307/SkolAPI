@@ -1,5 +1,7 @@
 # SkolAPI
 
+![logo][https://github.com/yannis300307/SkolAPI/blob/main/assets/title.png?raw=true]
+
 SkolAPI est une tentative de reverse-engineering du portail de connexion à Educonnect et un wrapper pour l'ENT Skolengo et ses dérivés.
 
 # Disclaimer
