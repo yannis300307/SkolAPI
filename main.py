@@ -6,6 +6,7 @@ from urllib import parse
 
 HOST = "https://educonnect.education.gouv.fr"
 
+
 class EduConnect:
     def __init__(self):
         self.ses = requests.session()
@@ -32,7 +33,8 @@ class EduConnect:
         connect_link = HOST + soup.find(id="validerAuth").get("action")
 
         connection_result = self.ses.post(connect_link,
-                            data=f"j_username={username}&j_password={password}&_eventId_proceed=", allow_redirects=False,
+                                          data=f"j_username={username}&j_password={password}&_eventId_proceed=",
+                                          allow_redirects=False,
                                           headers={"Origin": HOST,
                                                    "Referer": HOST + "/idp/profile/SAML2/Redirect/SSO?execution=e2s1",
                                                    "Content-Type": "application/x-www-form-urlencoded",
@@ -49,12 +51,6 @@ class EduConnect:
                                              "Referer": connection_result.url,
                                              "Content-Type": "application/x-www-form-urlencoded",
                                              "Sec-Fetch-Site": "same-origin"})
-
-        print(saml_result.text)
-        with open("out.html", "w") as file:
-            file.write(saml_result.text)
-
-        #print(self.ses.cookies)
 
 
 if __name__ == '__main__':
