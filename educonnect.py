@@ -23,6 +23,7 @@ class DisconnectionResult(Enum):
     SUCCESS = 0
     BAD_PACKET = 1
     NOT_CONNECTED = 2
+    UNKNOWN_ERROR = 3
 
 
 class EduConnect:
@@ -70,6 +71,10 @@ class EduConnect:
 
         :return: Return a `ConnectionResult` return code
         """
+
+        # Return if already connected
+        if self.is_account_connected():
+            return ConnectionResult.ALREADY_CONNECTED
 
         # Check if the credentials are valid with the same criterias as Educonnect's criterias
         if username == "" or password == "":
@@ -142,3 +147,21 @@ class EduConnect:
 
         # Check if the connection is effective
         return ConnectionResult.SUCCESS if self.is_account_connected() else ConnectionResult.UNKNOWN_ERROR
+
+    def disconnect(self) -> DisconnectionResult:
+        """Disconnect the EduConnect account.
+
+        :return: the disconnection state"""
+
+        # Return if the account is not connected
+        if not self.is_account_connected():
+            return DisconnectionResult.NOT_CONNECTED
+
+        # Get the disconnection point
+        try:
+            self.ses.get("https://moncompte.educonnect.education.gouv.fr/educt-self-service/connexion/deconnexion")
+        except requests.ConnectionError:
+            return DisconnectionResult.BAD_PACKET
+
+        # Check if the disconnection is effective
+        return DisconnectionResult.SUCCESS if not self.is_account_connected() else DisconnectionResult.UNKNOWN_ERROR
