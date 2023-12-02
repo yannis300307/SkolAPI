@@ -7,3 +7,5 @@ if __name__ == '__main__':
     print(edu.is_account_connected())
     edu.connect(input("username ? "), getpass.getpass())
     print(edu.is_account_connected())
+    edu.disconnect()
+    print(edu.is_account_connected())
