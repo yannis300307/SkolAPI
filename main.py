@@ -8,7 +8,7 @@ if __name__ == '__main__':
 
     edu.connect(input("username ? "), getpass.getpass())
 
-    skol = Skolengo("mon-ent-occitanie.fr", "pardailhan")
+    skol = Skolengo("", "")
 
     skol.connect_educonnect(edu, "TOULO-EDU_parent_eleve")
 

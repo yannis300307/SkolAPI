@@ -41,12 +41,35 @@ class Skolengo:
 
         return f"https://{self.sub_ent}.{self.host}/{relat_path}"
 
+    def is_account_connected(self):
+        """Return True if the account is connected.
+
+        :return: the connection state
+        """
+
+        # Get the home page of connected users
+        try:
+            home_page = self.ses.get(f"https://{self.sub_ent}.{self.host}/sg.do?PROC=PAGE_ACCUEIL", allow_redirects=False)
+        except requests.ConnectionError:
+            return False
+
+        # If the account is disconnected, requesting the home page will try to redirect to the connection page
+        return "Location" not in home_page.headers
+
     def connect_educonnect(self, educonnect: EduConnect, user_type: str) -> ConnectionResult:
         """Connect the ENT with Educonnect.
         :param educonnect: The autheticated Educonnect instance
 
         :return: Connection state
         """
+
+        # Check if the account is not already connected
+        if self.is_account_connected():
+            return ConnectionResult.ALREADY_CONNECTED
+
+        # Check if the EduConnect account is connected
+        if not educonnect.is_account_connected():
+            return ConnectionResult.EDUCONNECT_NOT_CONNECTED
 
         # Link the Skolengo session to the EduConnect session
         self.ses = educonnect.ses
