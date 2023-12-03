@@ -1,11 +1,20 @@
 import getpass
 
 from educonnect import EduConnect
+from skolengo import Skolengo
 
 if __name__ == '__main__':
     edu = EduConnect()
-    print(edu.is_account_connected())
+
     edu.connect(input("username ? "), getpass.getpass())
-    print(edu.is_account_connected())
+
+    skol = Skolengo("mon-ent-occitanie.fr", "pardailhan")
+
+    skol.connect_educonnect(edu, "TOULO-EDU_parent_eleve")
+
+    # Code here
+
+    skol.disconnect()
     edu.disconnect()
-    print(edu.is_account_connected())
+
+
