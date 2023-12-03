@@ -51,9 +51,10 @@ class Skolengo:
         # Link the Skolengo session to the EduConnect session
         self.ses = educonnect.ses
 
-        # Get the login page
         try:
+            # Get the login page
             self.ses.get(f"https://cas.{self.host}/login?service=" + self.get_page_path('sg.do?PROC=IDENTIFICATION_FRONT'))
+            # Select user_type
             submit_result = self.ses.get(f"https://cas.{self.host}/login?selection={user_type}&service={parse.quote_plus(self.get_page_path('sg.do?PROC=IDENTIFICATION_FRONT'))}&submit=Valider")
         except requests.ConnectionError:
             return ConnectionResult.BAD_PACKET
@@ -63,6 +64,7 @@ class Skolengo:
         except UnicodeDecodeError:
             return ConnectionResult.UNKNOWN_ERROR
 
+        # Recover RelayState and SAMLRequest values
         relay_state_list = soup.findAll("input", {"name": "RelayState"})
         saml_request_list = soup.findAll("input", {"name": "SAMLRequest"})
         if len(relay_state_list) == 0 or len(saml_request_list) == 0:
@@ -76,6 +78,7 @@ class Skolengo:
         relay_state_value = parse.quote_plus(relay_state_value)
         saml_request_value = parse.quote_plus(saml_request_value)
         try:
+            # Send values to SSO
             sso_result = self.ses.post("https://educonnect.education.gouv.fr/idp/profile/SAML2/POST/SSO",
                           data=f"RelayState={relay_state_value}&SAMLRequest={saml_request_value}",
                                        headers={
@@ -92,6 +95,7 @@ class Skolengo:
         except UnicodeDecodeError:
             return ConnectionResult.UNKNOWN_ERROR
 
+        # Recover RelayState and SAMLResponse values
         relay_state_list = soup.findAll("input", {"name": "RelayState"})
         saml_response_list = soup.findAll("input", {"name": "SAMLResponse"})
         if len(relay_state_list) == 0 or len(saml_response_list) == 0:
@@ -106,6 +110,7 @@ class Skolengo:
         saml_response_value = parse.quote(saml_response_value)
 
         try:
+            # Send values to SAMLAssertionConsumer and the account should be connected
             self.ses.post("https://cas.mon-ent-occitanie.fr/saml/SAMLAssertionConsumer",
                           data=f"RelayState={relay_state_value}&SAMLResponse={saml_response_value}",
                           headers={
