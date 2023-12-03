@@ -29,8 +29,22 @@ class Skolengo:
         """
         self.host = service_host
         self.sub_ent = sub_ent
-        self.ses = None
-        self.connection_type = None
+        self.connection_type = ConnectionType.NOT_CONNECTED
+
+        self.ses = requests.session()
+
+        # Headers used to simulate a real navigator
+        self.ses.headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/119.0",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+            "Accept-Language": "fr,fr-FR;q=0.8,en-US;q=0.5,en;q=0.3",
+            "Accept-Encoding": "gzip, deflate, br",
+            "Connection": "keep-alive",
+            "Upgrade-Insecure-Requests": "1",
+            "Sec-Fetch-Dest": "document",
+            "Sec-Fetch-Mode": "navigate",
+            "Sec-Fetch-User": "?1",
+        }
 
     def get_page_path(self, relat_path: str) -> str:
         """Return the absolute URL to the given relative path.
@@ -145,9 +159,11 @@ class Skolengo:
         except requests.ConnectionError:
             return ConnectionResult.BAD_PACKET
 
+        self.connection_type = ConnectionType.EDUCONNECT
+
         return ConnectionResult.SUCCESS
 
-    def connect_cas(self, username: str, password: str) -> bool:
+    def connect_cas(self, username: str, password: str, user_type: str) -> ConnectionResult:
         """Connect the ENT with direct CAS connection.
 
         :param username: The account username
@@ -155,6 +171,20 @@ class Skolengo:
 
         :return: Connection state
         """
+
+        # Check if the account is not already connected
+        if self.is_account_connected():
+            return ConnectionResult.ALREADY_CONNECTED
+
+        try:
+            # Get the login page
+            self.ses.get(
+                f"https://cas.{self.host}/login?service=" + self.get_page_path('sg.do?PROC=IDENTIFICATION_FRONT'))
+            self.ses.get(
+                f"https://cas.{self.host}/login?selection={user_type}&service={parse.quote_plus(self.get_page_path('sg.do?PROC=IDENTIFICATION_FRONT'))}&submit=Valider")
+            self.ses.get("https://cas.mon-ent-occitanie.fr/login")
+        except requests.ConnectionError:
+            return ConnectionResult.BAD_PACKET
 
 
     def disconnect(self) -> bool:
