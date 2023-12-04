@@ -5,6 +5,7 @@ import requests
 
 from educonnect import EduConnect
 from bs4 import BeautifulSoup
+from skolengo_services.messagerie import Messagerie
 
 
 class ConnectionResult(Enum):
@@ -18,6 +19,10 @@ class ConnectionType(Enum):
     NOT_CONNECTED = 0
     EDUCONNECT = 1
     DEFAULT_CAS = 2
+
+class SkolengoService(Enum):
+    MESSAGERIE = 0
+    CAHIER_DE_TEXTE = 1
 
 
 class Skolengo:
@@ -185,6 +190,11 @@ class Skolengo:
             self.ses.get("https://cas.mon-ent-occitanie.fr/login")
         except requests.ConnectionError:
             return ConnectionResult.BAD_PACKET
+
+    def get_service(self, service: SkolengoService):
+        match service:
+            case SkolengoService.MESSAGERIE:
+                return Messagerie(self)
 
 
     def disconnect(self) -> bool:
