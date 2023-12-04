@@ -76,7 +76,7 @@ class Skolengo:
         return "Location" not in home_page.headers
 
     def connect_educonnect(self, educonnect: EduConnect, user_type: str) -> ConnectionResult:
-        """Connect the ENT with Educonnect.
+        """Connect to the ENT with Educonnect.
         :param educonnect: The autheticated Educonnect instance
 
         :return: Connection state
