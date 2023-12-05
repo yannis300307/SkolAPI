@@ -14,7 +14,11 @@ if __name__ == '__main__':
 
     # Code here
     mailbox = skol.get_service(SkolengoService.MESSAGERIE)
-    mailbox.get_messages_list()
+    msg_list = mailbox.get_messages_list()
+
+    print(msg_list[0].get_discussion_list()[0].content_html)
+
+    print(msg_list[12].get_discussion_list()[0].get_attachments())
 
     skol.disconnect()
     edu.disconnect()

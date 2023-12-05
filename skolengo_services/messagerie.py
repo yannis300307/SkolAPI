@@ -6,10 +6,39 @@ from bs4 import BeautifulSoup
 
 
 class Discussion:
-    def __init__(self, message: 'Message', title_time, default_time, datetime_format_time, author_name, author_type, content_html):
+    def __init__(self, message: 'Message', title_time, default_time, datetime_format_time, author_name, author_type, content_html, raw_soup):
         self.message = message
+        self.title_time = title_time
+        self.default_time = default_time
+        self.datetime_format_time = datetime_format_time
+        self.author_name = author_name
+        self.author_type = author_type
+        self.content_html = content_html
 
-        self.message.messagerie.skolengo.ses.get()
+        self.__raw_soup = raw_soup
+
+    def get_content_plain_text(self) -> str:
+        """Recover the message content by parsing and convert it to plain text.
+        :return: The message content as plain text.
+        """
+        soup = BeautifulSoup(self.content_html, "html.parser")
+        return soup.text
+
+    def get_attachments(self) -> list[str]:
+        """Return a list of all atachments of the discussion.
+
+        :return: The attachment list
+        """
+        attachment_elements_list = self.__raw_soup.select(".js-jumbofiles__file-url")
+        attachment_list = []
+        for i in attachment_elements_list:
+            attachment_list.append(self.message.messagerie.skolengo.get_page_path(i.get("href")[1:]))
+
+        return attachment_list
+
+    content_plain_text = property(get_content_plain_text)
+    attachments = property(get_attachments)
+
 
 class Message:
     """A class used to manage a message from the mailbox."""
@@ -68,29 +97,28 @@ class Message:
         discussions = soup.select(".js-message")
 
         for i in discussions:
-            soup.find()
-            time_span = i.div.find("div")[1].span
+            time_span = i.div.findAll("div", recursive=False)[1].span
             title_time = time_span.get("title")
             default_time = time_span.time.text
             datetime_format_time = time_span.time.get("datetime")
 
-            author_info = i.div.div.button.div.find("div")[1].find("div")
+            author_info = i.div.div.button.div.findAll("div", recursive=False)[1].findAll("div")
 
             author_name = author_info[0].text
-            author_type = author_info[1].span.text
+            if len(author_info) > 1:
+                author_type = author_info[1].span.text
+            else:
+                author_type = ""
 
-            content_html = i.find("div", class_="row")[0].div
+            content_html = str(i.select(".wysiwyg")[0])
 
-            self.__discussions_list.append(Discussion(title_time, default_time, datetime_format_time, author_name, author_type, content_html))
+            raw_soup = i
 
-    def get_content_plain_text(self) -> str:
-        """Recover the message content by parsing and convert it to plain text.
-        :return: The message content as plain text.
-        """
-        soup = BeautifulSoup(self.get_content(), "html.parser")
-        return soup.text
+            self.__discussions_list.append(Discussion(self, title_time, default_time, datetime_format_time, author_name, author_type, content_html, raw_soup))
 
-    def get_attachment(self) -> list[str]:
+        return self.__discussions_list.copy()
+
+    def get_all_attachment(self) -> list[str]:
         """Return the link to the attachment of the message.
 
         :return: The link to the attachment or None if there is no attachment
@@ -103,9 +131,6 @@ class Message:
             attachment_list.append(self.messagerie.skolengo.get_page_path(i.get("href")[1:]))
 
         return attachment_list
-
-    #content = property(get_content)
-    content_plain_text = property(get_content_plain_text)
 
 
 class Messagerie:
