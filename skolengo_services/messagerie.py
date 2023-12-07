@@ -143,29 +143,102 @@ class Messagerie:
         """
         self.skolengo = skolengo
 
-    def get_messages_list(self):
-        """Return a list of the last 50 messages"""
+    def get_messages_list(self) -> list[Message]:
+        """Return a list of the last 50 messages
+        :return: The list of the messages
+        """
 
         message_list = []
 
         # Get the mailbox page for scrapping
-        content = self.skolengo.ses.get("https://pardailhan.mon-ent-occitanie.fr/sg.do?PROC=MESSAGERIE")
-        soup = BeautifulSoup(content.text, features='html.parser')
+        try:
+            content = self.skolengo.ses.get("https://pardailhan.mon-ent-occitanie.fr/sg.do?PROC=MESSAGERIE")
+        except requests.ConnectionError:
+            return message_list
 
+        try:
+            soup = BeautifulSoup(content.text, features='html.parser')
+        except UnicodeDecodeError:
+            return message_list
         message_list_content = soup.find(id="js_boite_reception")
+        if message_list_content:
+            return message_list
+
         message_list_html = message_list_content.findAll("li")
 
         for i in message_list_html:
-            author = i.div.span.findAll("span")[-1].get("title")
-            title = i.findAll("div", class_="col col--xs-5")[0].span.select(".js-consulterMessage")[0].text
-            title = " ".join(title.split("\n")[-1].split())
-            time_span = i.findAll("div", {"class": "col--xs-2"})[-1].div.span
-            title_time = time_span.get("title")
-            default_time = time_span.time.text
-            datetime_format_time = time_span.time.get("datetime")
-            message_origin = i.findAll("div", {"class": "col--xs-1"})[0].span.span.text
-            has_attachment = "icon--attached-file" in i.findAll("div", {"class": "col--xs-1"})[1].span.get("class")
-            link = i.findAll("div", class_="col col--xs-5")[0].span.select(".js-consulterMessage")[0].get("href")
+            # The name of the author
+            try:
+                author = i.div.span.findAll("span")[-1].get("title")
+                if author is None:
+                    author = ""
+            except (AttributeError, IndexError):
+                author = ""
+
+            # The title of the message
+            try:
+                title = i.findAll("div", class_="col col--xs-5")[0].span.select(".js-consulterMessage")[0].text
+                if title is None:
+                    title = ""
+                title = " ".join(title.split("\n")[-1].split())
+            except (AttributeError, IndexError):
+                title = ""
+
+            # The time span object used later in this method
+            try:
+                time_span = i.findAll("div", {"class": "col--xs-2"})[-1].div.span
+            except (AttributeError, IndexError):
+                time_span = None
+
+            # The title of the time span
+            try:
+                title_time = time_span.get("title")
+                if title_time is None:
+                    title_time = ""
+            except AttributeError:
+                title_time = ""
+
+            # The time written by default on the page
+            try:
+                default_time = time_span.time.text
+                if default_time is None:
+                    default_time = ""
+            except AttributeError:
+                default_time = ""
+
+            # The datetime format of the time
+            try:
+                datetime_format_time = time_span.time.get("datetime")
+                if datetime_format_time is None:
+                    datetime_format_time = ""
+            except AttributeError:
+                datetime_format_time = ""
+
+            # The origin of the message
+            try:
+                message_origin = i.findAll("div", {"class": "col--xs-1"})[0].span.span.text
+                if message_origin is None:
+                    message_origin = ""
+            except (AttributeError, IndexError):
+                message_origin = ""
+
+            # Does the message have an attachment
+            try:
+                has_attachment = "icon--attached-file" in i.findAll("div", {"class": "col--xs-1"})[1].span.get("class")
+                if has_attachment is None:
+                    has_attachment = ""
+            except (AttributeError, IndexError):
+                has_attachment = ""
+
+            # The https link to the message
+            try:
+                link = i.findAll("div", class_="col col--xs-5")[0].span.select(".js-consulterMessage")[0].get("href")
+                if link is None:
+                    link = ""
+            except (AttributeError, IndexError):
+                link = ""
+
+            # Convert the relative path to an absolute path
             link = self.skolengo.get_page_path("sg.do" + link)
 
             message_list.append(Message(author, title, title_time, default_time, datetime_format_time,
