@@ -1,8 +1,23 @@
+import json
+
 import requests
 
 import skolengo as skol
 
 from bs4 import BeautifulSoup
+
+
+class ContactList:
+    def __init__(self, data: json.JSONDecoder, messagerie: 'Messagerie'):
+        self.json = data
+
+    def get_contact(self, path):
+
+        path_dir = path.split("/")
+
+        for dir in path_dir:
+            pass
+
 
 
 class Discussion:
@@ -142,6 +157,21 @@ class Messagerie:
         :param skolengo: The Skolengo instance
         """
         self.skolengo = skolengo
+
+
+    def get_contacts(self):
+        """Return a `ContactList` object.
+
+        :return: The list of contact"""
+
+        try:
+            contact_list_response = self.skolengo.ses.get("https://pardailhan.mon-ent-occitanie.fr/sg.do?PROC=MESSAGERIE&ACTION=GET_NODES&FROM=")
+        except requests.ConnectionError:
+            return {}
+
+        contact_json = contact_list_response.json()
+
+        return
 
     def get_messages_list(self) -> list[Message]:
         """Return a list of the last 50 messages
