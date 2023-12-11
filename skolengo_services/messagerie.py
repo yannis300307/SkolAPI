@@ -13,6 +13,19 @@ class ContactList:
 
         path_dir = path.split("/")
 
+        print(self.json)
+        print(type(self.json))
+
+        tree = self.json
+        contact = None
+        for i in path_dir:
+            for j in tree:
+                if j["text"] == i:
+                    if j["text"] == path_dir[-1]:
+                        contact = tree
+                    else:
+                        tree = j["children"]
+        return contact
 
 
 
