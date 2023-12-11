@@ -1,5 +1,3 @@
-import json
-
 import requests
 
 import skolengo as skol
@@ -8,15 +6,13 @@ from bs4 import BeautifulSoup
 
 
 class ContactList:
-    def __init__(self, data: json.JSONDecoder, messagerie: 'Messagerie'):
+    def __init__(self, data: dict, messagerie: 'Messagerie'):
         self.json = data
 
     def get_contact(self, path):
 
         path_dir = path.split("/")
 
-        for dir in path_dir:
-            pass
 
 
 
@@ -158,7 +154,6 @@ class Messagerie:
         """
         self.skolengo = skolengo
 
-
     def get_contacts(self):
         """Return a `ContactList` object.
 
@@ -167,11 +162,11 @@ class Messagerie:
         try:
             contact_list_response = self.skolengo.ses.get("https://pardailhan.mon-ent-occitanie.fr/sg.do?PROC=MESSAGERIE&ACTION=GET_NODES&FROM=")
         except requests.ConnectionError:
-            return {}
+            return None
 
         contact_json = contact_list_response.json()
 
-        return
+        return ContactList(contact_json, self)
 
     def get_messages_list(self) -> list[Message]:
         """Return a list of the last 50 messages
@@ -191,7 +186,8 @@ class Messagerie:
         except UnicodeDecodeError:
             return message_list
         message_list_content = soup.find(id="js_boite_reception")
-        if message_list_content:
+
+        if message_list_content is None:
             return message_list
 
         message_list_html = message_list_content.findAll("li")
