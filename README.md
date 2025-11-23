@@ -1,3 +1,6 @@
+# Ce projet n'est plus maintenu.
+Il y a de grande chances pour que la majorité des fonctionnalités soient cassées.
+
 # SkolAPI
 
 ![logo](https://github.com/yannis300307/SkolAPI/blob/main/assets/title.png?raw=true)
